@@ -1,0 +1,26 @@
+#include "gem.hpp"
+
+Gem::Gem(int type, int x, int y, SDL_Texture* texture)
+{
+  this->type = type;
+
+  this->rectangle.x = x;
+  this->rectangle.y = y;
+  this->texture = texture;
+
+  this->y = y;
+  
+  SDL_QueryTexture(this->texture, NULL, NULL, &this->rectangle.w, &this->rectangle.h);
+
+}
+
+void Gem::render(SDL_Renderer* renderer, Camera &camera)
+{
+
+  this->rectangle.y = this->y + 10 * sin(SDL_GetTicks() / 200.0f);
+
+  SDL_Rect texture_rect = {16 * this->type, 0, 16, 16};
+
+  SDL_Rect draw_rect = {this->rectangle.x - camera.rectangle.x, this->rectangle.y - camera.rectangle.y, this->rectangle.w, this->rectangle.h};
+
+}

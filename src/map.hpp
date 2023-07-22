@@ -1,0 +1,65 @@
+#ifndef _MAP_H
+#define _MAP_H
+
+#include <SDL2/SDL.h>
+#include <vector>
+#include <cmath>
+#include "tile.hpp"
+#include "item.hpp"
+#include "camera.hpp"
+#include "tree.hpp"
+#include "gem.hpp"
+#include "gem_display.hpp"
+
+class Map
+{
+
+public:
+  
+  Tile* tiles;
+  Tree* trees;
+
+  Tile* background_tiles;  
+    
+  Item* dropped_items;
+
+  Gem* gems;
+  
+  int tile_width;
+  int tile_height;
+  int total_tiles;
+  int num_blocks_per_row;
+  int empty_index;
+
+  TTF_Font* font;
+  
+  int blocks_dropped = 0;
+  
+  SDL_Texture* map_texture;
+  SDL_Texture* gem_texture;
+  
+  Map(SDL_Texture* map_texture, SDL_Texture* gem_texture,int width, int height, int* types, int num_of_blocks_per_row, int total_tiles, TTF_Font* font, int hitpoints[7]);
+
+  void kill_item(int index);
+  
+  void render(SDL_Renderer* renderer, Camera &camera, SDL_Rect &player);
+
+  void drop_item(int id, int quantity, int x, int y, SDL_Texture* background_texture, int prob, int seed_prob, SDL_Renderer* renderer, Camera &camera);
+
+  
+  void break_tree(int index, int id, SDL_Texture* background_texture, int prob, int seed_prob, SDL_Renderer* renderer, Camera &camera);
+
+  void drop_gem(int x, int y, int type1);
+
+  void collect_gems(SDL_Renderer* renderer, SDL_Rect &player_rect, GemDisplay &gem_disp);
+  
+  int get_block(SDL_Rect &rect);
+
+  int get_tree_by_pos(int x, int y, Camera &camera);
+  
+  int get_block_by_pos(int x, int y, Camera &camera);
+  
+  int get_type(int index);
+};
+
+#endif

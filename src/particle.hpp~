@@ -1,0 +1,19 @@
+#include <stdlib.h>
+
+
+class Particle
+{
+public:
+
+  int current_x, current_y;
+  int dx, dy;
+  
+  respawn()
+  {
+    dx = 20 + rand() % 180
+
+
+  }
+
+
+}

@@ -1,0 +1,33 @@
+#include "timer.hpp"
+
+
+Timer::Timer(float duration)
+{
+  this->duration = duration;
+  this->starting_time = SDL_GetTicks();
+}
+
+bool Timer::is_running()
+{
+  if(SDL_GetTicks() - this->starting_time >= this->duration)
+    {
+      return false;
+
+    } else {return true;}
+}
+
+void Timer::restart(float duration)
+{
+  this->duration = duration;
+  this->starting_time = SDL_GetTicks();
+
+
+}
+
+float Timer::get_time_running()
+{
+  if(this->is_running())
+    {
+  return SDL_GetTicks() - this->starting_time; 
+    } else { return this->duration;}
+}

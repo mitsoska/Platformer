@@ -1,0 +1,85 @@
+#include "tree.hpp"
+
+
+Tree::Tree(SDL_Renderer* renderer, TTF_Font* font, int x, int y, SDL_Texture* texture, int id) : clock(10000.0f)
+{
+  this->font = font;
+  this->texture = texture;
+  this->id = id;
+  this->rectangle = {x, y, 32, 0};
+
+  this->initial_y = y;
+
+  std::string middleman = std::to_string(int((this->clock.duration - this->clock.get_time_running()) / 1000.0f));
+
+  this->time_string = "Time left = " + middleman;
+
+  SDL_Color color = {255,255,255};
+
+  
+  SDL_Surface* surface = TTF_RenderText_Solid(font, this->time_string.c_str(), color);
+ 
+  this->font_text = SDL_CreateTextureFromSurface(renderer, surface);
+  
+  this->font_rect.w = surface->w;
+  this->font_rect.h = surface->h;
+
+  this->font_rect.x = this->rectangle.x + 16 - this->font_rect.w / 2;
+  this->font_rect.y = this->rectangle.y - 25 - 32;
+  
+  SDL_FreeSurface(surface);
+  
+}
+
+
+void Tree::update_texture(SDL_Renderer* renderer)
+{
+  
+  SDL_DestroyTexture(this->font_text);
+
+  std::string middleman = std::to_string(int((this->clock.duration - this->clock.get_time_running()) / 1000.0f));
+ 
+  this->time_string = "Time left: " + middleman;
+
+  if(int(ceil((this->clock.duration - this->clock.get_time_running()) / 1000.0f) == 0))
+    this->time_string = "Ready to harvest!";
+  
+  SDL_Surface* surface = TTF_RenderText_Solid(this->font, this->time_string.c_str(), this->white);
+ 
+  this->font_text = SDL_CreateTextureFromSurface(renderer, surface);
+   
+  SDL_FreeSurface(surface);
+  
+}
+
+
+
+void Tree::render(SDL_Renderer* renderer, Camera &camera, SDL_Rect &player)
+{
+
+  SDL_Rect source_rect = {this->id  * 32, 0, 32, 32};
+  
+  SDL_Rect dest_rect = {this->rectangle.x - camera.rectangle.x, this->rectangle.y - int(float(32 / 10000.0) * this->clock.get_time_running()) - camera.rectangle.y, 32, int(float(32 / 10000.0) * this->clock.get_time_running())};
+
+  SDL_RenderCopy(renderer, this->texture, &source_rect, &dest_rect);
+
+  // This magic number (8) is an offset that makes it so that the player doesn't have to be exatly on the tree in order to view its clock
+  
+  if(player.x >= this->rectangle.x && player.x <= this->rectangle.x + this->rectangle.w && player.y > this->initial_y - floor(36) && player.y <= this->initial_y  - ceil(8 * camera.zoom_level))
+    {
+      puts("HEY, HEYYY, HEY ,HEY !\n");
+
+      this->font_rect.x = this->rectangle.x + 16  - this->font_rect.w / 2 - camera.rectangle.x;
+      this->font_rect.y = this->rectangle.y - 25  - 32  - camera.rectangle.y;
+      
+      SDL_Rect back = {this->font_rect.x - 10 / camera.zoom_level, this->font_rect.y - 5 / camera.zoom_level, this->font_rect.w + 20 / camera.zoom_level, this->font_rect.h + 10 / camera.zoom_level};
+
+      SDL_SetRenderDrawColor(renderer, 20, 20, 200, 255);
+      SDL_RenderFillRect(renderer, &back);
+      
+      this->update_texture(renderer);
+      SDL_RenderCopy(renderer, this->font_text, NULL, &this->font_rect);
+
+    }
+}
+

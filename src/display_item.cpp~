@@ -1,0 +1,107 @@
+#include "display_item.hpp"
+
+
+DisplayItem::DisplayItem(SDL_Renderer* renderer, int id, int quantity, SDL_Texture* texture, TTF_Font* font, int x, int y, SDL_Color& color, const char* titles[12])  : title_clock(2000.0f)
+{
+
+  this->font = font;
+
+  this->is_selected = false;
+  this->rectangle = {x, y};
+  this->id = id;
+  this->quantity = quantity;
+  this->background_texture = texture;
+   
+  
+  SDL_QueryTexture(this->background_texture, NULL, NULL, &this->rectangle.w, &this->rectangle.h);
+
+  this->rectangle.w += 15;
+  this->rectangle.h += 15;
+
+  this->string_quantity = std::to_string(this->quantity);
+
+  
+  this->quantity_rect.x = this->rectangle.x + 3/2 * this->rectangle.w ;
+  this->quantity_rect.y = this->rectangle.y + + this->rectangle.h - 10;
+  
+  SDL_Surface* surface = TTF_RenderText_Solid(font, this->string_quantity.c_str(), color);
+ 
+  this->quantity_texture = SDL_CreateTextureFromSurface(renderer, surface);
+  
+  this->quantity_rect.w = surface->w;
+  this->quantity_rect.h = surface->h;
+
+  SDL_FreeSurface(surface);
+
+  SDL_Surface* surface2 = TTF_RenderText_Solid(font, titles[id - 1], color);
+  this->title_texture = SDL_CreateTextureFromSurface(renderer, surface2);
+
+  SDL_FreeSurface(surface2);
+
+}
+
+
+void DisplayItem::render(SDL_Renderer* renderer, Map& map)
+{
+
+  SDL_RenderCopy(renderer, this->background_texture, NULL, &this->rectangle);
+
+  this->rectangle.x += this->rectangle.w / 2 - 10;
+  this->rectangle.y += this->rectangle.h / 2 - 10;
+  this->rectangle.w /= 2;
+  this->rectangle.h /= 2;
+  
+  SDL_Rect texture_rect = {32 * this->id, 0, 32, 32};
+
+  SDL_RenderCopy(renderer, map.map_texture, &texture_rect,  &this->rectangle);
+
+  SDL_RenderCopy(renderer, this->quantity_texture, NULL, &this->quantity_rect);
+
+  this->rectangle.w *= 2;
+  this->rectangle.h *= 2;
+    
+  this->rectangle.x += -this->rectangle.w / 2 + 10;
+  this->rectangle.y += -this->rectangle.h / 2 + 10;
+
+  if(is_selected && title_clock.is_running())
+    {
+
+      SDL_Rect back = {this->rectangle.x - 15, this->rectangle.y - 35, this->rectangle.w + 25, this->rectangle.h - 15};
+
+      SDL_SetRenderDrawColor(renderer, 20, 20, 10, 255);
+      SDL_RenderFillRect(renderer, &back);
+
+      
+      SDL_Rect title_rect = {back.x + 5, back.y + 5, back.w - 5, back.h - 5};
+      SDL_RenderCopy(renderer, this->title_texture, NULL, &title_rect);
+
+
+    }
+}
+
+void DisplayItem::update_texture(SDL_Renderer* renderer)
+{
+  
+  SDL_DestroyTexture(this->quantity_texture);
+
+  this->string_quantity = std::to_string(this->quantity);
+
+  SDL_Surface* surface = TTF_RenderText_Solid(this->font, this->string_quantity.c_str(), this->white);
+ 
+  this->quantity_texture = SDL_CreateTextureFromSurface(renderer, surface);
+   
+  SDL_FreeSurface(surface);
+
+  
+    
+}
+
+bool DisplayItem::is_hover()
+{
+  int x, y;
+  SDL_GetMouseState(&x, &y);
+  
+  return ((x < this->rectangle.x + this->rectangle.w && x > this->rectangle.x) && (y < this->rectangle.y + this->rectangle.h && y > this->rectangle.y));
+
+}
+

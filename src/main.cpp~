@@ -1,0 +1,559 @@
+#include <ctime>
+#include "tile.hpp"
+#include "map.hpp"
+#include <SDL2/SDL_image.h>
+#include "sprite.hpp"
+#include <cmath>
+#include "timer.hpp"
+#include "sound.hpp"
+#include "particle_generator.hpp"
+#include "particle.hpp"
+#include "item.hpp"
+#include "inventory.hpp"
+#include "gem_display.hpp"
+
+
+void apply_window_borders(Sprite &player, int WORLD_WIDTH, int WORLD_HEIGHT)
+{
+  if(player.rectangle.x <= 0)
+    {
+      player.rectangle.x = 0;
+    }
+
+  if(player.rectangle.x + player.rectangle.w >= WORLD_WIDTH)
+    {
+      player.rectangle.x = WORLD_WIDTH - player.rectangle.w;
+
+    }
+
+  if(player.rectangle.y + player.rectangle.h >= WORLD_HEIGHT)
+    {
+      player.rectangle.y = WORLD_HEIGHT - player.rectangle.h;
+
+    }
+
+  if(player.rectangle.y < 0)
+    player.rectangle.y = 0;
+}
+
+
+int main()
+{
+
+  srand(time(NULL));
+  
+  int block_prob[7] = {
+    0,
+    2,
+    5,
+    2,
+    3,
+    3,
+    3,
+  };
+
+  int seed_prob[7] = {
+    0,
+    2,
+    6,
+    2,
+    4,
+    4,
+    4,
+  };
+
+
+  float durations[2] = {
+
+    10000.0f,
+    20000.0f,
+  };
+
+
+  int recipes[2][3] =
+    {
+      {7, 8, 17},
+      {8, 10, 18},
+
+
+    };
+
+
+  int gem_info [7][3] = {
+    {0, 2, 6},
+    {0, 2, 6},
+    {0, 2, 6},  // First number: min gems, Second: Max gems, Third: chance to drop
+    {0, 2, 6},
+    {0, 2, 6},
+    {0, 2, 6},
+    {0, 2, 6},
+
+  };
+
+  
+  const char* titles[12] =
+    {
+      "Dirt block",
+      "Stone block",
+      "Dirt block",
+      "Lava block",
+      "Wood block",
+      "Grass block",
+      "Dirt seed",
+      "Stone seed",
+      "Dirt seed",
+      "Lava seed",
+      "Wood seed",
+      "Grass seed",
+
+    };
+
+
+  int hitpoints[7] =
+    {
+      0,
+      1,
+      2,
+      3,
+      1,
+      1,
+      1,
+    };
+  
+  float dy = 15 * 1.0 / 60;
+
+  float punch_timer = 0.0f;
+  float delta_time = 1.0 / 60;
+
+  bool is_looking_right, is_looking_left;
+  bool is_moving_right = false;
+  bool is_moving_left = false;
+  bool is_punching = false;
+  bool is_jumping = false;
+  bool is_being_dragged = false;
+  
+  Timer punching_timer(1000);
+  Timer dust_timer(300);
+
+  int WIDTH = 800;
+  int HEIGHT = 800;
+  
+  int speed = 0;
+
+  int current_block;
+  
+  int height = 25;
+  int width = 44;
+
+  int WORLD_WIDTH = width * 32;
+  int WORLD_HEIGHT = height * 32;
+  
+  TTF_Init();
+  
+  TTF_Font* font_small = TTF_OpenFont("res/Roboto-Regular.ttf", 15);
+
+  
+  // This list represents the different blocks present in the map
+  
+  int block_types[height * width] =
+  {
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,1 ,1 ,1 ,1 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,
+    1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,
+    2 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,2 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,
+    2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,
+    2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,
+    2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,
+    2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,
+    2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,2 ,
+    4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,
+    4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,4 ,
+    19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,
+    19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,
+    19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,
+    19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,
+  };
+
+  SDL_Init(SDL_INIT_EVERYTHING);
+
+  SDL_Window* window = SDL_CreateWindow("Platformer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+  
+  SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  
+  SDL_Texture* map_texture = IMG_LoadTexture(renderer, "res/map_texture.png");
+  SDL_Texture* button_background = IMG_LoadTexture(renderer, "res/item_background.png");
+  SDL_Texture* inventory_text = IMG_LoadTexture(renderer, "res/inventory.png");
+  SDL_Texture* button_background_hover = IMG_LoadTexture(renderer, "res/item_background_hover.png");
+  SDL_Texture* background = IMG_LoadTexture(renderer, "res/background.png");
+  SDL_Texture* gem_text = IMG_LoadTexture(renderer, "res/gems.png");
+  SDL_Texture* display_gem = IMG_LoadTexture(renderer, "res/gem.png");
+  
+  Sprite player(renderer, "res/player.png", 0 ,0);
+  Sprite punch(renderer, "res/punch.png", 0, 0);
+
+   // 2 for stereo
+  Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024);
+  Mix_Chunk* sound =  Mix_LoadWAV("res/punch.wav");
+  Mix_Chunk* place_sound = Mix_LoadWAV("res/place.wav");
+  Mix_Chunk* jump = Mix_LoadWAV("res/jump.wav");
+  
+  player.is_falling = true;
+
+  Map new_map(map_texture, gem_text, 32, 32, block_types, 44, height * width, font_small, hitpoints);
+  
+  ParticleGenerator dust(renderer, 0, 0, 5, "res/dust.png", 2, 16, 16);
+
+  Camera camera(WIDTH, HEIGHT, player.rectangle);
+
+  camera.zoom(renderer, 1.0f);
+
+  
+  Inventory inventory(10, inventory_text, button_background, button_background_hover, font_small, camera);
+  
+  SDL_Color white = {255,255,255};
+
+  GemDisplay gem_icon(renderer, WIDTH - 32, HEIGHT / 2 - 128, display_gem, font_small);
+  
+  while(true)
+    {
+      
+      camera.update(player.rectangle);
+
+      // Checking for window out-of-bounds collisions
+
+            
+      if(camera.rectangle.x < 0)
+	camera.rectangle.x = 0;
+
+      if(camera.rectangle.y < 0)
+	camera.rectangle.y = 0;
+
+      if(camera.rectangle.x + camera.rectangle.w > WORLD_WIDTH)
+	camera.rectangle.x = WORLD_WIDTH - camera.rectangle.w;
+
+      if(camera.rectangle.y + camera.rectangle.h > WORLD_HEIGHT)
+	camera.rectangle.y  = WORLD_HEIGHT - camera.rectangle.h;
+      
+      const Uint8* keystate = SDL_GetKeyboardState(NULL);
+
+      inventory.check_collect_item(renderer, player.rectangle, new_map, titles, camera);
+      new_map.collect_gems(renderer, player.rectangle, gem_icon);
+      
+      if(keystate[SDL_SCANCODE_D])
+	{
+	  speed = 200;
+	  player.move(speed, Sprite::RIGHT, new_map);
+	  
+	}
+
+      if(keystate[SDL_SCANCODE_A])
+	{
+
+	  speed = 200;
+	  player.move(speed, Sprite::LEFT, new_map);
+	  
+	}
+
+      SDL_Event event;
+
+      while(SDL_PollEvent(&event))
+	{
+	  switch(event.type)
+	    {
+	    case SDL_QUIT:
+	      goto clean_game;
+	      break;
+
+
+	    case SDL_MOUSEBUTTONDOWN:
+	      if(event.button.button == SDL_BUTTON_LEFT)
+		{
+
+		  
+		  int mouse_x, mouse_y;
+
+		  SDL_GetMouseState(&mouse_x, &mouse_y);
+		  
+		  if(mouse_x / camera.zoom_level < inventory.main_rect.x + inventory.main_rect.w && mouse_x / camera.zoom_level > inventory.main_rect.x && mouse_y  / camera.zoom_level > inventory.main_rect.y && mouse_y / camera.zoom_level < inventory.main_rect.y + inventory.main_rect.h)
+		  {
+		  
+		    
+		    for(int i = 0; i < inventory.slots; i ++)
+		      {
+			if(inventory.items[i].is_hover(camera) && inventory.items[i].is_selected)
+			  {
+			    for(int k = 0; k < inventory.slots; k++)
+			      inventory.items[k].is_selected = false;
+
+			    break;
+
+			  }
+  
+			if(inventory.items[i].is_hover(camera) && !inventory.items[i].is_selected)
+			  {
+			    for(int k = 0; k < inventory.slots; k++)
+			      inventory.items[k].is_selected = false;
+			    
+			    inventory.items[i].is_selected = true;
+			    inventory.items[i].title_clock.restart(2000.0f);
+			    
+			  }
+		    
+
+		      }
+
+
+		    if(mouse_y / camera.zoom_level < inventory.main_rect.y + 20)
+		      is_being_dragged = true;
+		  }
+
+		  for(int i = 0; i < inventory.slots; i ++)
+		    {
+		      if(inventory.items[i].is_selected)
+			{
+			  inventory.place_item(renderer, inventory.items[i], mouse_x, mouse_y, new_map, camera, recipes);
+			  Mix_PlayChannel(-1, place_sound, 0);
+		  
+			  goto end_of_events;
+			}
+		     
+		    }
+		  if(mouse_x  > player.rectangle.x - camera.rectangle.x)
+		    {
+		      is_looking_right = true;
+		      is_looking_left = false;
+		    }
+		  if(mouse_x < player.rectangle.x - camera.rectangle.x)
+		    {
+		      is_looking_left = true;
+		      is_looking_right = false;
+		    }
+
+		  // Calculating the position to which the punch will point at
+
+		  current_block = new_map.get_block_by_pos(mouse_x, mouse_y, camera);
+
+		  
+		  if((new_map.tiles[current_block].index_in_texture != 0 && new_map.tiles[current_block].index_in_texture != 19) || ((new_map.trees[new_map.get_tree_by_pos(mouse_x, mouse_y, camera)].id != 0 && new_map.trees[new_map.get_tree_by_pos(mouse_x, mouse_y, camera)].clock.is_running() == false)) )
+		    {
+
+		      if(new_map.tiles[current_block].index_in_texture <= 6 && new_map.tiles[current_block].index_in_texture != 0 && new_map.tiles[current_block].hitpoints <= 0)
+			{
+			new_map.drop_item(new_map.tiles[current_block].index_in_texture, 1, mouse_x * camera.zoom_level + camera.rectangle.x , mouse_y * camera.zoom_level + camera.rectangle.y, button_background, rand() % block_prob[new_map.tiles[current_block].index_in_texture], rand() % seed_prob[new_map.tiles[current_block].index_in_texture], renderer, camera);
+	
+			if(rand() % gem_info[new_map.tiles[current_block].index_in_texture][2] == 1)
+			  {
+			    int gems_dropped = gem_info[new_map.tiles[current_block].index_in_texture][0] + rand() % gem_info[new_map.tiles[current_block].index_in_texture][1];
+
+			    for(int i = 0; i < gems_dropped; i++)
+			      new_map.drop_gem(new_map.tiles[current_block].rectangle.x + 16, new_map.tiles[current_block].rectangle.y + 16, 1);
+
+			  }
+
+			new_map.tiles[current_block].index_in_texture = 0;
+					
+			
+			} else {new_map.tiles[current_block].hitpoints -= 1;}
+			
+		      if(new_map.trees[new_map.get_tree_by_pos(mouse_x, mouse_y, camera)].id > 6)
+			new_map.break_tree(new_map.get_tree_by_pos(mouse_x, mouse_y, camera), new_map.trees[new_map.get_tree_by_pos(mouse_x, mouse_y, camera)].id, button_background, 1, 1, renderer, camera);
+
+
+		      dust_timer.restart(600);		      
+		      dust.move(new_map.tiles[current_block].rectangle.x - camera.rectangle.x  + new_map.tiles[current_block].rectangle.w / 2, new_map.tiles[current_block].rectangle.y -camera.rectangle.y+ new_map.tiles[current_block].rectangle.h / 2);
+
+			
+		    }
+		      
+		      
+
+	      is_punching = true;
+			  		  
+	      punching_timer.restart(300);
+		    
+	      // 0 -> play once... -1 -> first available channel you find
+	      Mix_PlayChannel(-1, sound, 0);
+
+		}
+	      break;
+
+	    case SDL_MOUSEMOTION:
+	      if(is_being_dragged)
+		{
+		  int mouse_x, mouse_y;
+		  SDL_GetMouseState(&mouse_x, &mouse_y);
+
+		  inventory.main_rect.y = mouse_y;
+		  inventory.update_drag(camera);
+		  
+		  
+		  if(inventory.main_rect.y  < HEIGHT - inventory.main_rect.h)
+		    inventory.main_rect.y = HEIGHT - inventory.main_rect.h;
+		  
+		  
+		}
+
+	      break;
+
+	    case SDL_KEYDOWN:
+	      if(event.key.keysym.sym == SDLK_w && is_jumping == false && dy == 0)
+		{
+		  puts("MEOW?\n");
+		  dy = -8;
+		  player.rectangle.y += dy;
+		  is_jumping = true;
+		  Mix_PlayChannel(-1, jump, 0);
+			      
+		}
+
+	      if(event.key.keysym.sym == SDLK_EQUALS)
+		{
+		  camera.zoom(renderer, 3.0f);
+		  camera.update(player.rectangle);
+		  inventory.update(camera);
+		  
+		}
+		  
+	      if(event.key.keysym.sym == SDLK_MINUS)
+		{
+		  camera.zoom(renderer, 1.0f);
+		  camera.update(player.rectangle);
+		  inventory.update(camera);
+		}
+	      
+
+	      break;
+	      
+	    case SDL_KEYUP:
+	      switch(event.key.keysym.sym)
+		{
+		case SDLK_d:
+		  speed = 0;
+
+		  break;
+
+		case SDLK_a:
+
+		  speed = 0;
+
+		  break;
+		}
+
+	      break;
+
+	    case SDL_MOUSEBUTTONUP:
+	      is_being_dragged = false;
+	    }
+
+
+	}
+
+    end_of_events:
+
+      apply_window_borders(player, WORLD_WIDTH, WORLD_HEIGHT);
+
+      SDL_SetRenderDrawColor(renderer, 130, 130, 170, 255);
+      SDL_RenderClear(renderer);
+
+      // if(dy != 0 || is_jumping)
+      // 	{
+      // 	  dy += 15 * delta_time;
+      // 	  player.rectangle.y += int(dy);
+      // 	}
+
+      SDL_RenderCopy(renderer, background, NULL, NULL);
+
+      player.apply_collisions(dy, new_map, is_jumping);
+
+      new_map.render(renderer, camera, player.rectangle);
+      player.render(renderer, camera);
+
+      if(is_punching)
+	{
+
+	  // Calculating the position to which the punch will point to
+	  punch.rectangle.y = player.rectangle.y + player.rectangle.h / 4;
+	  if(is_looking_right)
+	  {
+	      punch.rectangle.x = player.rectangle.x + player.rectangle.w / 4;
+	      punch.rectangle.w = abs(sin(punching_timer.get_time_running() * 3.14 / punching_timer.duration) * sqrt(pow(punch.rectangle.y - (current_block / width) * 32, 2) + pow(punch.rectangle.x - (current_block % width) * 32, 2))) + new_map.tile_width / 2;
+	 
+	  } else {
+	    
+	    punch.rectangle.x = player.rectangle.x + player.rectangle.w / 4;
+	    punch.rectangle.w = sin(punching_timer.get_time_running() * 3.14 / punching_timer.duration) * sqrt(pow( -punch.rectangle.y + (current_block / width) * 32, 2) + pow(- punch.rectangle.x + (current_block % width) * 32, 2)) - new_map.tile_width / 2;
+	 }
+	  punch.rectangle.h = 20;
+
+	}
+      if(punching_timer.is_running() && is_punching && new_map.tiles[current_block].index_in_texture != 19)
+	{
+
+	  // Position relative to the punch's rectangle
+	  SDL_Point origin  = {0 , punch.rectangle.h / 2};
+
+	  double angle;
+
+	  if(is_looking_right)
+	    { angle = atan(
+	    (player.rectangle.y - (current_block / width) * 32)
+	    / ((current_block % width) * 32.0 - player.rectangle.x) 
+			      ) * 180 / 3.14;
+	    } else {angle = atan(
+				 (player.rectangle.y - (current_block / width) * 32)
+				 / ((current_block % width) * 32.0 - player.rectangle.x) 
+			      ) * 180 / 3.14 - 180;}
+
+
+	  if(abs(new_map.tiles[current_block].rectangle.x - player.rectangle.x) < 10 && new_map.tiles[current_block].rectangle.y > player.rectangle.y)
+	    { angle = 270.0f;} else if (abs(new_map.tiles[current_block].rectangle.x - player.rectangle.x) < 10 && new_map.tiles[current_block].rectangle.y < player.rectangle.y)
+	    { angle = 90.0f;}
+
+	  SDL_Rect drawrect = {punch.rectangle.x - camera.rectangle.x, punch.rectangle.y - camera.rectangle.y, punch.rectangle.w, punch.rectangle.h};
+	  SDL_RenderCopyEx(renderer, punch.texture, NULL, &drawrect, -angle, &origin, SDL_FLIP_NONE);
+
+
+
+
+	  
+	} else { is_punching = false; punch_timer = 0.0f;}
+
+      if(dust_timer.is_running())
+	dust.update_and_render(renderer, 40);
+
+      inventory.render(renderer, new_map, camera);
+      gem_icon.render(renderer);
+
+      
+      SDL_RenderPresent(renderer);
+      SDL_Delay(16);
+    }
+
+ clean_game:
+
+  SDL_DestroyTexture(map_texture);
+  SDL_DestroyTexture(button_background);
+  SDL_DestroyTexture(inventory_text);
+  SDL_DestroyTexture(button_background_hover);
+  SDL_DestroyTexture(background);
+
+  Mix_FreeChunk(sound);
+  Mix_Quit();
+  Mix_CloseAudio();
+  
+  SDL_DestroyWindow(window);
+  SDL_DestroyRenderer(renderer);
+  SDL_Quit();
+
+
+}

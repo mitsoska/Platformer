@@ -1,0 +1,27 @@
+#ifndef _GEM_H
+#define _GEM_H
+
+
+#include <SDL2/SDL.h>
+#include "camera.hpp"
+
+class Gem
+{
+public:
+  SDL_Rect rectangle;
+  SDL_Texture* texture;
+
+  int y;
+  int type;
+
+public:
+  Gem(int type, int x, int y, SDL_Texture* texture);
+
+
+  void render(SDL_Renderer* renderer, Camera &camera);
+
+};
+
+
+
+#endif

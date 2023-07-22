@@ -1,0 +1,65 @@
+#include "button.hpp"
+
+Button::Button(SDL_Renderer* renderer, Label &title_given, TTF_Font* font, const char* description, SDL_Color color,  Sprite &icon_given, Sprite &background_given, int price, float cps, int x, int y) : icon(icon_given), background(background_given), title(title_given)
+{
+  
+  this->cps = cps;
+  this->price= price;
+  
+  this->background.rectangle.x = x;
+  this->background.rectangle.y = y;
+  this->icon.rectangle.x = this->background.rectangle.x + 10;
+  this->icon.rectangle.y = this->background.rectangle.y + 10;
+
+  this->descr_rect.x = this->icon.rectangle.x + this->icon.rectangle.w + 10;
+
+  
+  SDL_Surface* surface = TTF_RenderText_Blended_Wrapped(font, description, color, this->background.rectangle.w  - x - this->descr_rect.x);
+ 
+  this->descr_texture = SDL_CreateTextureFromSurface(renderer, surface);
+  this->descr_rect.w = surface->w;
+  this->descr_rect.h = surface->h;
+
+  SDL_FreeSurface(surface);
+  
+
+
+  this->title.rectangle.x =this->background.rectangle.w / 2 - this->title.rectangle.w / 2  + this->icon.rectangle.x/2 + this->icon.rectangle.w / 2;
+  this->title.rectangle.y = this->background.rectangle.y + 10;
+  
+  this->descr_rect.y = this->title.rectangle.y + 20;
+}
+
+
+bool Button::is_hover()
+{
+  int mouse_x, mouse_y;
+
+  SDL_GetMouseState(&mouse_x, &mouse_y);
+
+  if((mouse_x >= this->background.rectangle.x && mouse_x <= this->background.rectangle.w + this->background.rectangle.x) && (mouse_y >= this->background.rectangle.y && mouse_y <= this->background.rectangle.y + this->background.rectangle.h))
+  {
+    return true;
+
+
+  } else { return false; }
+
+}
+
+
+
+void Button::render(SDL_Renderer* renderer, SDL_Texture* normal_texture, SDL_Texture* excited_texture)
+{
+  if (this->is_hover())
+    {
+      this->background.update_texture(renderer, normal_texture);
+
+    } else { this->background.update_texture(renderer, excited_texture); }
+
+  this->background.render(renderer);
+  this->icon.render(renderer);
+  this->title.render(renderer);
+  SDL_RenderCopy(renderer, this->descr_texture, NULL, &this->descr_rect);
+
+}
+

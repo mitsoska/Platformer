@@ -1,0 +1,53 @@
+#include "gem_display.hpp"
+
+GemDisplay::GemDisplay(SDL_Renderer* renderer, int x, int y, SDL_Texture* texture, TTF_Font* font)
+{
+  this->texture = texture;
+  this->main_rect = {x, y, 32, 32};
+  this->font = font;
+  this->value = 0;
+  
+  this->string_value = std::to_string(this->value);
+
+  SDL_Color color = {255, 255, 255};
+  
+  SDL_Surface* surface = TTF_RenderText_Solid(font, this->string_value.c_str(), color);
+ 
+  this->font_text = SDL_CreateTextureFromSurface(renderer, surface);
+
+  this->font_rect.w = surface->w; // camera.zoom_level;
+  this->font_rect.h = surface->h; // camera.zoom_level;
+  this->font_rect.x = x - this->font_rect.w - 5;
+  this->font_rect.y = y + this->font_rect.h / 2;
+  
+  SDL_FreeSurface(surface);
+
+  
+}
+
+void GemDisplay::update_texture(SDL_Renderer* renderer)
+{
+
+  SDL_DestroyTexture(this->font_text);
+
+  this->string_value = std::to_string(this->value);
+
+  SDL_Color color = {255, 255, 255};
+  
+  SDL_Surface* surface = TTF_RenderText_Solid(this->font, this->string_value.c_str(), color);
+ 
+  this->font_text = SDL_CreateTextureFromSurface(renderer, surface);
+   
+  SDL_FreeSurface(surface);
+
+}
+
+void GemDisplay::render(SDL_Renderer* renderer)
+{
+  
+  SDL_RenderCopy(renderer, this->texture, NULL, &this->main_rect);
+
+  SDL_RenderCopy(renderer, this->font_text, NULL, &this->font_rect);
+
+
+}

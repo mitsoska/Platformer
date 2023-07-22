@@ -1,0 +1,46 @@
+#include "particle_generator.hpp"
+
+
+ParticleGenerator::ParticleGenerator(SDL_Renderer* renderer, float x, float y, int num_of_particles, const char* texture_path, int lifespan, int width, int height)
+{
+  this->texture = IMG_LoadTexture(renderer, texture_path);
+  this->particle_rect.w = width;
+  this->particle_rect.h = height;
+
+  this->move(x, y);
+}
+
+void ParticleGenerator::move(float x, float y)
+{
+  for (Particle& particle : this->particles)
+    {
+      particle.respawn(x, y);
+
+      this->origin_x = x;
+      this->origin_y = y;
+    }
+}
+
+void ParticleGenerator::update_and_render(SDL_Renderer* renderer, int limit_radius)
+{
+  for (Particle& particle : this->particles)
+    {
+      particle.current_x += particle.dx / 60.0;
+      particle.current_y += particle.dy / 60.0;
+
+      this->particle_rect.x = int(particle.current_x);
+      this->particle_rect.y = int(particle.current_y);
+      
+      if (
+	  (particle.current_x >= limit_radius + this->origin_x) ||
+	  (particle.current_x <= this->origin_x - limit_radius) ||
+	  (particle.current_y >= limit_radius + this->origin_y) ||
+	  (particle.current_y <= this->origin_y - limit_radius)
+	 )
+	{
+	  particle.respawn(this->origin_x, this->origin_y);
+	}
+
+      SDL_RenderCopy(renderer, this->texture, NULL, &this->particle_rect);
+    }
+}
